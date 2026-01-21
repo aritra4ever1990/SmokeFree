@@ -14,6 +14,15 @@
 <body>
   <header class="app-header">
     <h1>🚭 SmokeLess</h1>
+    <div class="header-actions">
+      <label class="theme-label">Theme
+        <select id="themeSwitch">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+    </div>
     <nav class="tabs" role="tablist">
       <button class="tab-btn active" data-tab="dashboard" aria-selected="true">Dashboard</button>
       <button class="tab-btn" data-tab="log">Log</button>
@@ -55,6 +64,7 @@
           <p class="muted">Estimated spend this month</p>
           <div class="metric"> <span id="moneySpent">₹0</span></div>
           <p class="muted">vs baseline you could be saving <strong id="moneySaved">₹0</strong></p>
+          <p class="muted">Craving savings (timers) <strong id="moneyCravingSaved">₹0</strong></p>
         </div>
 
         <!-- CRAVING TIMER -->
@@ -83,9 +93,15 @@
           <div class="badges-list" id="badgesList"></div>
         </div>
 
-        <!-- BADGES GALLERY (persistent) -->
+        <!-- BADGES GALLERY with filter -->
         <div class="card card-gallery">
           <h3>Badges Gallery</h3>
+          <div class="row wrap" id="badgesFilter" style="gap:8px; margin-bottom:8px;">
+            <button class="chip" data-cat="all">All</button>
+            <button class="chip" data-cat="streaks">Streaks</button>
+            <button class="chip" data-cat="timer">Timer</button>
+            <button class="chip" data-cat="savings">Savings</button>
+          </div>
           <div id="badgesGallery" class="badges-gallery"></div>
         </div>
 
@@ -101,17 +117,6 @@
           <h3>Triggers Heatmap (Hours × Triggers, Last 30 days)</h3>
           <canvas id="heatmap" class="heatmap" width="640" height="340" aria-label="Triggers heatmap hours by triggers"></canvas>
           <p class="muted">Rows = triggers, Columns = hours (0–23). Darker = more logs.</p>
-        </div>
-
-        <!-- CUSTOM TRIGGERS EDITOR -->
-        <div class="card card-triggers">
-          <h3>Custom Triggers</h3>
-          <div id="triggersEditor"></div>
-          <div class="row" style="margin-top:8px; gap:8px;">
-            <input id="newTrigger" type="text" placeholder="Add new trigger" />
-            <button id="addTriggerBtn" class="btn">Add</button>
-          </div>
-          <p class="muted">Tip: Adjust the list to match your habits. This updates the Log dropdown and quick chips.</p>
         </div>
       </div>
     </section>
@@ -200,6 +205,20 @@
           <button id="clearPlan" class="btn danger">Clear Plan</button>
         </div>
       </div>
+
+      <div class="card form">
+        <h3>Triggers</h3>
+        <label>Current triggers
+          <select id="planTriggersSelect" multiple size="6"></select>
+        </label>
+        <div id="planTriggersEditor"></div>
+        <div class="row" style="margin-top:8px; gap:8px;">
+          <input id="planNewTrigger" type="text" placeholder="Add new trigger" />
+          <button id="planAddTriggerBtn" class="btn">Add</button>
+        </div>
+        <p class="muted">Tip: Tailor triggers to your habits. This updates the Log dropdown and quick chips.</p>
+      </div>
+
       <div class="card">
         <h3>Daily Limits (next 90 days)</h3>
         <div id="planGrid" class="plan-grid"></div>

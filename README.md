@@ -1,26 +1,28 @@
-# 🚭 SmokeLess — Local Smoking Tracker (v4)
+# 🚭 SmokeLess — Local Smoking Tracker (v5)
 
-**New in v4:**
-- **Timer toasts** (in‑app notifications): “5:00 left — walk for 2 minutes?”, “2:00 left — sip water”, and start/finish toasts.
-- **Custom triggers editor**: add / delete / reorder triggers; updates the Log dropdown and quick chips.
-- **Professional dashboard**: subtle color‑themed backgrounds per card for better visual grouping.
+**New in v5:**
+- **Custom triggers moved to Plan** — manage triggers (add / delete / reorder) under **Plan → Triggers**; updates Log dropdown & chips.
+- **Badges Gallery filter** — filter by **All / Streaks / Timer / Savings**.
+- **Theme switch** — choose **System / Light / Dark** from the header.
+- **Craving history** — timer events (start/pause/reset/delay/milestone/complete) are captured in **History**.
+- **Savings boost** — each successful timer completion contributes to **Craving savings** in the **Money** card (current month).
 
-Other highlights carried over:
-- **3‑month plan** with daily limits and optional quit date.
-- **Timer‑gated logging**, **Delay 5 min**, **badge on timer completion** (also shows ₹ saved for 1 cigarette).
-- **30‑day line chart** & **hours × triggers** heatmap (last 30 days).
-- **Streaks & Badges** (plus a persistent gallery).
-- **Export/Import** JSON/CSV (badges included in JSON; triggers are part of settings).
-- **PWA** ready; works offline when served locally.
+Other highlights:
+- **3‑month taper plan** with editable daily limits and optional quit date.
+- **Timer‑gated logging** + **Delay 5 min**.
+- **30‑day line chart** & **Hours × Triggers** heatmap (last 30 days).
+- **Streaks & Badges** (plus persistent gallery).
+- **Export/Import** JSON (entries, settings, badges) and CSV (now includes **type** and **action** columns).
+- **PWA** ready; offline once served locally.
 
 ## ▶️ Run locally
-- Quick: open `index.html` directly.
-- Recommended (PWA): in folder run `python -m http.server 5500` → open `http://localhost:5500/` → **Install app**.
+- Quick: open `index.html`.
+- Recommended (PWA): `python -m http.server 5500` → open `http://localhost:5500/` → **Install app**.
 
-## Tips
-- Set **Cost per pack** & **Cigs per pack** in **Plan** to see savings after successful timers and in monthly money stats.
-- Use the **Custom Triggers** card on the Dashboard to tailor the Log experience to your habits.
-- Export JSON regularly as backup.
+## Notes
+- **Theme**: “System” respects your OS setting; “Light/Dark” overrides it.
+- **Craving savings**: assumes the price of ~1 cigarette saved per successful timer; set **Cost per pack / Cigs per pack** in **Plan**.
+- **CSV import**: legacy CSVs (without `type`) are treated as smoke entries.
 
 ## License
 MIT
