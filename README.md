@@ -1,50 +1,39 @@
-# 🚭 SmokeLess — Local Smoking Tracker (v2)
+# 🚭 SmokeLess — Local Smoking Tracker (v3)
 
-A lightweight, privacy‑first web app to log cigarettes, visualize trends, and follow a simple 3‑month taper plan to quit — now with **Craving Timer**, **Streaks & Badges**, and **Charts**.
+Now includes **Delay 5 minutes**, **Persistent Badges Gallery**, **Hours × Triggers heatmap**, and **Timer‑gated logging**.
 
-- **No backend, no sign‑up** — data stays in your browser (localStorage).
-- **Plan** — generate a 90‑day taper to 0 (or set your quit date).
-- **Dashboard** — today’s total, 7‑day sparkline, money stats.
-- **NEW:** **Craving Timer** (10 minutes with rotating tips).
-- **NEW:** **Streaks & Badges** (within‑limit, zero‑day, weekly improvements).
-- **NEW:** **Charts** — 30‑day line chart & triggers heatmap (native Canvas, no libs).
-- **History** — review and delete entries.
-- **Export/Import** — JSON/CSV with merge & de‑dup by id.
-- **PWA** — installable; works offline when served locally.
+- **No backend, no sign‑up** — data stays local (localStorage).
+- **Plan** — 90‑day taper to 0 (or quit date) + **Craving timer duration**.
+- **Dashboard** — today’s total & remaining vs limit, sparkline, money., **Craving Timer** with **Delay 5 min**.
+- **Charts** — 30‑day line chart & **hours × triggers** heatmap.
+- **Streaks & Badges** — live streaks + **persistent gallery**.
+- **Export/Import** — JSON/CSV (badges also exported).
+- **PWA** — installable; offline when served locally.
 
 ## ▶️ Run locally
-**Option A (quickest):**
-- Open `index.html` directly in your browser (no install prompt; still works).
+- Quick: open `index.html` directly.
+- Recommended (PWA): in folder run `python -m http.server 5500` → open `http://localhost:5500/` → **Install app**.
 
-**Option B (recommended):**
-- From `smoking-tracker` folder, run a local server:
-  - Python 3: `python -m http.server 5500`
-  - Node: `npx http-server -p 5500`
-- Visit `http://localhost:5500/` and choose **Install app**.
-
-## 💡 Feature details
+## 🆕 v3 details
 ### Craving Timer
-- 10‑minute countdown with **Start / Pause / Reset**.
-- Saves state so a reload won’t lose progress.
-- Rotating tips to ride out cravings.
+- **Start / Delay 5 min / Pause / Reset**.
+- When **running**, **logging is disabled** (Quick Log and Save are disabled and attempts are blocked).
+- On **completion**, you **earn a badge** and see the **price of 1 cigarette saved** (uses **Cost per pack / Cigs per pack** from Plan).
+- Default duration is set in **Plan → Craving timer (minutes)**.
 
-### Streaks & Badges
-- **Within‑limit streak** (only counts days where a limit exists).
-- **Zero‑day streak** (days with 0 total).
-- **Weekly change** compares last 7 days vs previous 7 days.
-- Earn badges like *First day within limit*, *3‑day within‑limit*, *7‑day within‑limit*, *First zero‑day*, *72 hours clear*, *20% weekly drop*.
+### Badges
+- **Live** badges shown under *Streaks & Badges*.
+- **Persistent** badges saved and displayed in *Badges Gallery*.
 
-### Charts
-- **30‑Day Line Chart:** Daily counts (blue) with daily limit overlay (gray, dashed).
-- **Triggers Heatmap:** Rows = triggers; columns = days of week (Mon → Sun); darker cells = more logs in the last 30 days.
+### Heatmap
+- **Hours × Triggers** (0–23 × triggers) for the **last 30 days**. Darker = more logs.
 
 ## 🔒 Privacy
-All data is local. Export regularly if you plan to clear browser storage.
+All data (entries, settings, badges) is stored locally.
 
-## 🛠️ Customization ideas
-- Add notifications/reminders for times you typically log.
-- Add a “Delay 5 minutes” quick‑action on the timer.
-- Add a trigger editor to customize the list.
+## 🛠️ Tips
+- Set **Cost per pack** and **Cigs per pack** in Plan for money stats & timer savings.
+- Export JSON periodically as a backup.
 
 ## 📄 License
 MIT

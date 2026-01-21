@@ -1,4 +1,4 @@
-// SmokeLess — v2 with craving timer, streaks/badges, charts
+// SmokeLess — v3 with delay 5 min, persistent badges, hour×trigger heatmap, timer gating
 (function(){
   const $ = (sel, ctx=document) => ctx.querySelector(sel);
   const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
@@ -6,7 +6,8 @@
   const KEYS = {
     entries: 'smoke_entries_v1',
     settings: 'smoke_settings_v1',
-    timer: 'smoke_timer_v1'
+    timer: 'smoke_timer_v1',
+    badges: 'smoke_badges_v1'
   };
 
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -14,7 +15,8 @@
 
   // State
   let entries = load(KEYS.entries, []);
-  let settings = load(KEYS.settings, { costPerPack: 0, cigsPerPack: 20, baseline: null, quitDate: null, plan: [] });
+  let settings = load(KEYS.settings, { costPerPack: 0, cigsPerPack: 20, baseline: null, quitDate: null, plan: [], timerMinutes: 10 });
+  let earnedBadges = load(KEYS.badges, []); // [{k,label,ts}]
 
   // Tabs
   $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
@@ -38,10 +40,7 @@
   const dayTotals = (arr) => Object.fromEntries(Object.entries(groupByDay(arr)).map(([k,v])=>[k, v.reduce((s,e)=>s+Number(e.count||0),0)]));
   const getPlanLimit = (dateISO) => { const f=(settings.plan||[]).find(p=>p.date===dateISO); return f?Number(f.limit):null; };
 
-  const lastNDates = (n) => {
-    const out=[]; const now = new Date(); now.setHours(0,0,0,0);
-    for(let i=n-1;i>=0;i--){ const d=new Date(now); d.setDate(now.getDate()-i); out.push(d); }
-    return out; };
+  const lastNDates = (n) => { const out=[]; const now = new Date(); now.setHours(0,0,0,0); for(let i=n-1;i>=0;i--){ const d=new Date(now); d.setDate(now.getDate()-i); out.push(d); } return out; };
 
   // ---- DASHBOARD ----
   function renderDashboard(){
@@ -58,14 +57,14 @@
     renderMoney();
     computeAndRenderStreaksAndBadges(totals);
     draw30DayChart(totals);
-    drawTriggersHeatmap();
+    drawTriggersHeatmapHours();
     hydrateTimer();
+    renderBadgesGallery();
   }
 
   // 7-day trend sparkline
   function renderSparkline(totals){
-    const days = [];
-    const now = new Date();
+    const days = []; const now = new Date();
     for(let i=6;i>=0;i--){ const d = new Date(now); d.setDate(now.getDate()-i); const k = todayKey(d); days.push({k, count: totals[k]||0, limit: getPlanLimit(k)}); }
     const max = Math.max(5, ...days.map(d=> (d.limit ?? d.count)));
     const sp = $('#sparkline'); sp.innerHTML = '';
@@ -86,7 +85,7 @@
   function renderMoney(){
     const {start, end} = (function(d=new Date()){ return {start:new Date(d.getFullYear(), d.getMonth(), 1), end:new Date(d.getFullYear(), d.getMonth()+1, 0)}; })();
     const monthTotal = entries.filter(e=>{ const dt=new Date(e.ts); return dt>=start && dt<=end; }).reduce((s,e)=>s+Number(e.count||0),0);
-    const pricePerCig = settings.cigsPerPack ? (Number(settings.costPerPack||0)/Number(settings.cigsPerPack||1)) : 0;
+    const pricePerCig = perCigPrice();
     const spent = monthTotal * pricePerCig;
     const baselineMonth = settings.baseline ? settings.baseline * end.getDate() : null;
     const saved = baselineMonth!=null ? Math.max(0,(baselineMonth - monthTotal) * pricePerCig) : 0;
@@ -94,8 +93,9 @@
     $('#moneySpent').textContent = fmtCurrency(spent);
     $('#moneySaved').textContent = fmtCurrency(saved);
   }
+  function perCigPrice(){ return settings.cigsPerPack ? (Number(settings.costPerPack||0)/Number(settings.cigsPerPack||1)) : 0; }
 
-  // Quick log & undo
+  // Quick log & undo (gated by timer)
   $('#quickLog1').addEventListener('click', ()=> addEntry({count:1}));
   $('#undoLast').addEventListener('click', ()=> { const last = entries[entries.length-1]; if(!last) return alert('No entries to undo.'); if(confirm('Remove the last entry?')){ entries.pop(); save(KEYS.entries, entries); renderDashboard(); if($('#history').classList.contains('active')) renderHistory(); }});
 
@@ -103,6 +103,7 @@
   const logForm = $('#logForm');
   logForm.addEventListener('submit', (e)=>{
     e.preventDefault();
+    if(timer.running){ alert('Craving timer is running — logging is disabled until it ends.'); return; }
     const count = Number($('#count').value||1);
     const when = $('#when').value ? new Date($('#when').value) : new Date();
     const trigger = $('#trigger').value || '';
@@ -114,6 +115,7 @@
   $$('#log .chip').forEach(ch => ch.addEventListener('click', ()=>{ $('#trigger').value = ch.dataset.trigger; $('#count').value = 1; $('#when').value=''; $('#mood').value=''; $('#note').value=''; $('#count').focus(); }));
 
   function addEntry({count=1, ts=(new Date()).toISOString(), trigger='', mood='', note=''}){
+    if(timer.running){ alert('Craving timer is running — logging is disabled until it ends.'); return; }
     const e = { id: randId(), ts, count:Number(count)||1, trigger, mood, note };
     entries.push(e); entries.sort((a,b)=> a.ts.localeCompare(b.ts));
     save(KEYS.entries, entries);
@@ -165,6 +167,7 @@
     $('#quitDate').value = settings.quitDate ?? '';
     $('#costPerPack').value = settings.costPerPack ?? '';
     $('#cigsPerPack').value = settings.cigsPerPack ?? '';
+    $('#timerMinutes').value = settings.timerMinutes ?? 10;
 
     const grid = $('#planGrid'); grid.innerHTML = '';
     if(!settings.plan || settings.plan.length===0){ grid.innerHTML = '<p class="muted">No plan yet. Enter baseline and optional quit date, then click Generate.</p>'; return; }
@@ -184,6 +187,7 @@
     settings.baseline = baseline>0?baseline:null; settings.quitDate = qd;
     settings.costPerPack = Number($('#costPerPack').value||settings.costPerPack||0);
     settings.cigsPerPack = Number($('#cigsPerPack').value||settings.cigsPerPack||20);
+    settings.timerMinutes = Math.max(1, Number($('#timerMinutes').value||settings.timerMinutes||10));
     if(baseline>0){ settings.plan = generatePlan(baseline, qd); }
     save(KEYS.settings, settings); renderPlan(); renderDashboard();
   });
@@ -191,57 +195,62 @@
 
   // ---- EXPORT / IMPORT ----
   function download(filename, text){ const blob = new Blob([text], {type:'text/plain;charset=utf-8'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
-  $('#exportJson').addEventListener('click', ()=>{ const data = { entries, settings }; download('smokeless_export_'+todayKey()+'.json', JSON.stringify(data, null, 2)); });
+  $('#exportJson').addEventListener('click', ()=>{ const data = { entries, settings, badges: earnedBadges }; download('smokeless_export_'+todayKey()+'.json', JSON.stringify(data, null, 2)); });
   $('#exportCsv').addEventListener('click', ()=>{ const header = 'id,ts,count,trigger,mood,note\n'; const lines = entries.map(e=> [e.id, e.ts, e.count, e.trigger||'', e.mood||'', (e.note||'').replaceAll('\n',' ').replaceAll('"','""')].map(v=>`"${String(v)}"`).join(',')); download('smokeless_entries_'+todayKey()+'.csv', header + lines.join('\n')); });
   $('#importFile').addEventListener('change', async (ev)=>{
     const file = ev.target.files?.[0]; if(!file) return; const text = await file.text();
     try {
-      if(file.name.endsWith('.json')){ const obj = JSON.parse(text); mergeData(obj.entries||[], obj.settings||{}); }
+      if(file.name.endsWith('.json')){ const obj = JSON.parse(text); mergeData(obj.entries||[], obj.settings||{}, obj.badges||[]); }
       else if(file.name.endsWith('.csv')){
         const rows = text.split(/\r?\n/).filter(Boolean); const hdr = rows.shift();
         const idx = (name)=> hdr.toLowerCase().split(',').findIndex(h=>h.trim().replace(/\"/g,'')===name);
         const iId=idx('id'), iTs=idx('ts'), iCount=idx('count'), iTrigger=idx('trigger'), iMood=idx('mood'), iNote=idx('note');
         const newEntries = rows.map(r=>{ const cols = r.match(/\"(?:(?:\"\"|[^\"])*)\"/g)?.map(c=>c.slice(1,-1).replaceAll('""','"')) || r.split(','); return { id: cols[iId]||randId(), ts: cols[iTs]||new Date().toISOString(), count: Number(cols[iCount]||1), trigger: cols[iTrigger]||'', mood: cols[iMood]||'', note: cols[iNote]||'' }; });
-        mergeData(newEntries, {});
+        mergeData(newEntries, {}, []);
       } else { alert('Unsupported file type. Please select a .json or .csv file'); }
     } catch(err){ console.error(err); alert('Import failed: '+err.message); } finally { ev.target.value = ''; }
   });
-  function mergeData(newEntries, newSettings){ const existingIds = new Set(entries.map(e=>e.id)); let added = 0; newEntries.forEach(e=>{ if(!existingIds.has(e.id)){ entries.push(e); added++; }}); entries.sort((a,b)=> a.ts.localeCompare(b.ts)); settings = { ...settings, ...newSettings }; save(KEYS.entries, entries); save(KEYS.settings, settings); alert(`Import complete. ${added} new entries merged.`); renderDashboard(); renderHistory(); renderPlan(); }
+  function mergeData(newEntries, newSettings, newBadges){
+    const existingIds = new Set(entries.map(e=>e.id)); let added = 0; newEntries.forEach(e=>{ if(!existingIds.has(e.id)){ entries.push(e); added++; }});
+    entries.sort((a,b)=> a.ts.localeCompare(b.ts));
+    // merge settings (shallow)
+    settings = { ...settings, ...newSettings };
+    // merge badges by key
+    const have = new Set(earnedBadges.map(b=>b.k));
+    newBadges.forEach(b=>{ if(b && b.k && !have.has(b.k)){ earnedBadges.push(b); have.add(b.k); }});
+    save(KEYS.entries, entries); save(KEYS.settings, settings); save(KEYS.badges, earnedBadges);
+    alert(`Import complete. ${added} new entries merged.`);
+    renderDashboard(); renderHistory(); renderPlan();
+  }
 
   // ---- STREAKS & BADGES ----
   function computeAndRenderStreaksAndBadges(totals){
-    const dates = lastNDates(120); // look back up to ~4 months for nice streaks
+    const dates = lastNDates(120);
     let within=0, zero=0; let bestWithin=0, bestZero=0;
     for(let i=dates.length-1;i>=0;i--){
       const iso = todayKey(dates[i]); const count = totals[iso]||0; const limit = getPlanLimit(iso);
-      // within-limit streak counts only when a limit exists; if no plan, treat as not within-limit
       const okWithin = (limit!=null && count<=limit);
       const okZero = (count===0);
-      // rolling current streaks from today backwards until break
       if(i===dates.length-1){ within = okWithin?1:0; zero = okZero?1:0; }
       else {
         if(okWithin && within === (dates.length-1-i)) within++; else if(!okWithin && within!==0) within=0;
         if(okZero && zero === (dates.length-1-i)) zero++; else if(!okZero && zero!==0) zero=0;
       }
-      // track best streaks (not shown but could be used later)
-      bestWithin = Math.max(bestWithin, within);
-      bestZero = Math.max(bestZero, zero);
+      bestWithin = Math.max(bestWithin, within); bestZero = Math.max(bestZero, zero);
     }
-    $('#streakWithin').textContent = within;
-    $('#streakZero').textContent = zero;
+    $('#streakWithin').textContent = within; $('#streakZero').textContent = zero;
 
-    // weekly improvement: compare last 7 vs previous 7
+    // weekly improvement
     const d14 = lastNDates(14); const last7 = d14.slice(7), prev7 = d14.slice(0,7);
     const sum = (arr)=> arr.reduce((s,d)=>{ const k=todayKey(d); return s + (totals[k]||0); },0);
     const last7sum = sum(last7), prev7sum = sum(prev7);
     let weeklyChange = '—';
-    if(prev7sum>0){ const diff = last7sum - prev7sum; const pct = Math.round((diff/prev7sum)*100);
-      weeklyChange = (pct===0? '0%': (pct>0? '+'+pct+'% ↑':'-'+Math.abs(pct)+'% ↓')) + ` (${last7sum} vs ${prev7sum})`; }
+    if(prev7sum>0){ const diff = last7sum - prev7sum; const pct = Math.round((diff/prev7sum)*100); weeklyChange = (pct===0? '0%': (pct>0? '+'+pct+'% ↑':'-'+Math.abs(pct)+'% ↓')) + ` (${last7sum} vs ${prev7sum})`; }
     else if(last7sum>0){ weeklyChange = `+${100}% ↑ (${last7sum} vs 0)`; }
     else { weeklyChange = '0% (no logs)'; }
     $('#weeklyChange').textContent = weeklyChange;
 
-    // badges
+    // transient badges based on current state
     const badges = [];
     if(within>=1) badges.push({k:'first-within', label:'First day within limit'});
     if(within>=3) badges.push({k:'within-3', label:'3‑day within‑limit streak'});
@@ -249,18 +258,27 @@
     if(zero>=1) badges.push({k:'zero-1', label:'First zero‑day'});
     if(zero>=3) badges.push({k:'zero-3', label:'72 hours clear'});
     if(prev7sum>0 && (prev7sum-last7sum)/prev7sum>=0.2) badges.push({k:'drop-20', label:'20% weekly drop'});
+
+    // display transient badges
     const wrap = $('#badgesList'); wrap.innerHTML='';
-    if(badges.length===0){ wrap.innerHTML = '<span class="muted">No badges yet — you got this!</span>'; }
+    if(badges.length===0){ wrap.innerHTML = '<span class="muted">No new badges yet — you got this!</span>'; }
     else badges.forEach(b=>{ const el=document.createElement('span'); el.className='badge'; el.textContent=b.label; wrap.appendChild(el); });
+
+    // persist newly earned badges (by key)
+    const have = new Set(earnedBadges.map(b=>b.k));
+    badges.forEach(b=>{ if(!have.has(b.k)){ earnedBadges.push({ ...b, ts: new Date().toISOString() }); have.add(b.k); }});
+    save(KEYS.badges, earnedBadges);
+  }
+
+  function renderBadgesGallery(){
+    const g = $('#badgesGallery'); g.innerHTML='';
+    if(!earnedBadges || earnedBadges.length===0){ g.innerHTML = '<span class="muted">No badges earned yet.</span>'; return; }
+    earnedBadges.sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
+    earnedBadges.forEach(b=>{ const el=document.createElement('span'); el.className='badge'; el.title = b.ts ? new Date(b.ts).toLocaleString() : ''; el.textContent = b.label; g.appendChild(el); });
   }
 
   // ---- CHARTS (Canvas) ----
-  function setCanvasSize(canvas){
-    const dpr = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect();
-    if(rect.width===0){ canvas.width = canvas.width; return canvas.getContext('2d'); }
-    canvas.width = Math.max(320, Math.floor(rect.width*dpr)); canvas.height = Math.floor((rect.height||260)*dpr);
-    const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr); return ctx;
-  }
+  function setCanvasSize(canvas){ const dpr = window.devicePixelRatio || 1; const rect = canvas.getBoundingClientRect(); if(rect.width===0){ canvas.width = canvas.width; return canvas.getContext('2d'); } canvas.width = Math.max(320, Math.floor(rect.width*dpr)); canvas.height = Math.floor((rect.height||260)*dpr); const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr); return ctx; }
 
   function draw30DayChart(totals){
     const canvas = $('#chart30'); if(!canvas) return; const ctx = setCanvasSize(canvas);
@@ -268,46 +286,32 @@
     const data = dates.map(d=> ({k: todayKey(d), v: totals[todayKey(d)]||0, limit: getPlanLimit(todayKey(d))}));
     const maxV = Math.max(5, ...data.map(x=> Math.max(x.v, x.limit??0)));
     const W = canvas.clientWidth || 640, H = 260; const pl=36, pr=10, pt=10, pb=26; const iw=W-pl-pr, ih=H-pt-pb;
-    // bg
-    ctx.clearRect(0,0,W,H);
-    ctx.fillStyle = '#0b1324'; ctx.fillRect(0,0,W,H);
-    // axes
+    ctx.clearRect(0,0,W,H); ctx.fillStyle = '#0b1324'; ctx.fillRect(0,0,W,H);
     ctx.strokeStyle = '#22304f'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pl, pt); ctx.lineTo(pl, pt+ih); ctx.lineTo(pl+iw, pt+ih); ctx.stroke();
-    // y grid
     ctx.font = '12px system-ui'; ctx.fillStyle = '#94a3b8'; ctx.textAlign='right';
     const steps = 4; for(let i=0;i<=steps;i++){ const y = pt + ih - (ih*i/steps); const val = Math.round(maxV*i/steps); ctx.strokeStyle='#1f2a44'; ctx.beginPath(); ctx.moveTo(pl, y); ctx.lineTo(pl+iw, y); ctx.stroke(); ctx.fillText(String(val), pl-6, y+4); }
-    // x ticks (every ~5 days)
-    ctx.textAlign='center';
-    const stepX = Math.max(1, Math.floor(dates.length/6));
-    for(let i=0;i<dates.length;i+=stepX){ const x = pl + (iw*i/(dates.length-1)); const lab = (dates[i].getMonth()+1)+'/'+dates[i].getDate(); ctx.fillText(lab, x, pt+ih+18); }
-    // line (counts)
-    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.beginPath();
-    data.forEach((p,i)=>{ const x = pl + (iw*i/(data.length-1)); const y = pt + ih - (p.v/maxV)*ih; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke();
-    // limit line (gray)
+    ctx.textAlign='center'; const stepX = Math.max(1, Math.floor(dates.length/6)); for(let i=0;i<dates.length;i+=stepX){ const x = pl + (iw*i/(dates.length-1)); const lab = (dates[i].getMonth()+1)+'/'+dates[i].getDate(); ctx.fillText(lab, x, pt+ih+18); }
+    ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.beginPath(); data.forEach((p,i)=>{ const x = pl + (iw*i/(data.length-1)); const y = pt + ih - (p.v/maxV)*ih; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke();
     ctx.strokeStyle = '#64748b'; ctx.setLineDash([4,4]); ctx.beginPath(); data.forEach((p,i)=>{ const x = pl + (iw*i/(data.length-1)); const lim = (p.limit!=null?p.limit:NaN); const y = isNaN(lim)?NaN: pt + ih - (lim/maxV)*ih; if(i===0) ctx.moveTo(x,y||0); else if(!isNaN(y)) ctx.lineTo(x,y); }); ctx.stroke(); ctx.setLineDash([]);
   }
 
-  function drawTriggersHeatmap(){
+  function drawTriggersHeatmapHours(){
     const canvas = $('#heatmap'); if(!canvas) return; const ctx = setCanvasSize(canvas);
     const triggers = ['Stress','After meal','Coffee/Tea','Alcohol','Social','Boredom','Commute','Other',''];
     const dates = lastNDates(30); const startMs = dates[0].getTime();
-    // Build counts by trigger x dayOfWeek (0=Mon..6=Sun)
-    const counts = {}; triggers.forEach(t=> counts[t]=Array(7).fill(0));
-    entries.forEach(e=>{ const dt = new Date(e.ts); if(dt.getTime()>=startMs){ const dow = (dt.getDay()+6)%7; const trig = e.trigger||''; const t = triggers.includes(trig)?trig:''; counts[t][dow] += Number(e.count||0); } });
+    // counts by trigger x hour(0..23)
+    const counts = {}; triggers.forEach(t=> counts[t]=Array(24).fill(0));
+    entries.forEach(e=>{ const dt = new Date(e.ts); if(dt.getTime()>=startMs){ const hour = dt.getHours(); const trig = e.trigger||''; const t = triggers.includes(trig)?trig:''; counts[t][hour] += Number(e.count||0); } });
 
-    const W = canvas.clientWidth || 640, H = 300; ctx.clearRect(0,0,W,H); ctx.fillStyle='#0b1324'; ctx.fillRect(0,0,W,H);
-    const pl=90, pt=18, pr=10, pb=26; const cols=7, rows=triggers.length; const cw=(W-pl-pr)/cols, rh=(H-pt-pb)/rows;
-    // labels
+    const W = canvas.clientWidth || 640, H = 340; ctx.clearRect(0,0,W,H); ctx.fillStyle='#0b1324'; ctx.fillRect(0,0,W,H);
+    const pl=90, pt=18, pr=10, pb=28; const cols=24, rows=triggers.length; const cw=(W-pl-pr)/cols, rh=(H-pt-pb)/rows;
     ctx.font='12px system-ui'; ctx.fillStyle='#94a3b8'; ctx.textAlign='center';
-    const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    days.forEach((d,i)=> ctx.fillText(d, pl + i*cw + cw/2, H-8));
+    for(let i=0;i<cols;i++){ const x = pl + i*cw + cw/2; ctx.fillText(String(i), x, H-8); }
     ctx.textAlign='right'; triggers.forEach((t,i)=> ctx.fillText(t||'Other/None', pl-8, pt + i*rh + rh/2 + 4));
 
-    // color scale
     const maxVal = Math.max(1, ...Object.values(counts).flat());
     function cellColor(v){ const a = v/maxVal; const r = Math.round(34 + a*80), g = Math.round(197 - a*60), b = Math.round(94 - a*10); return `rgba(${r}, ${g}, ${b}, 1)`; }
 
-    // draw cells
     for(let r=0;r<rows;r++){
       for(let c=0;c<cols;c++){
         const t = triggers[r]; const v = counts[t][c]; ctx.fillStyle = cellColor(v);
@@ -316,8 +320,8 @@
     }
   }
 
-  // ---- CRAVING TIMER (10 minutes) ----
-  let timer = load(KEYS.timer, { remainingMs: 10*60*1000, running: false, lastTick: null });
+  // ---- CRAVING TIMER ----
+  let timer = load(KEYS.timer, { remainingMs: (settings.timerMinutes||10)*60*1000, running: false, lastTick: null });
   let timerInterval = null;
   const tips = [
     'Take 10 slow breaths — in through the nose, out through the mouth.',
@@ -329,20 +333,43 @@
     'Chew sugar‑free gum or have a healthy snack.',
   ];
   function formatMMSS(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
-  function updateTimerUI(){ $('#timerDisplay').textContent = formatMMSS(timer.remainingMs); }
+  function updateTimerUI(){ $('#timerDisplay').textContent = formatMMSS(timer.remainingMs); setLoggingGatedState(); }
   function showRandomTip(){ $('#timerTip').textContent = 'Tip: ' + tips[Math.floor(Math.random()*tips.length)]; }
+  function setLoggingGatedState(){
+    const gating = !!timer.running;
+    $('#quickLog1').disabled = gating;
+    $('#logSaveBtn').disabled = gating;
+    $('#loggingDisabledMsg').style.display = gating? 'block':'none';
+  }
   function tick(){
     if(!timer.running) return; const now = Date.now(); const last = timer.lastTick || now; const diff = now - last; timer.remainingMs = Math.max(0, timer.remainingMs - diff); timer.lastTick = now; updateTimerUI();
-    if(timer.remainingMs===0){ clearInterval(timerInterval); timerInterval=null; timer.running=false; showRandomTip(); alert('Craving timer done! Urge usually fades within a few minutes — great job.'); }
+    if(timer.remainingMs===0){ clearInterval(timerInterval); timerInterval=null; timer.running=false; showRandomTip(); onTimerCompleted(); }
     save(KEYS.timer, timer);
   }
-  function startTimer(){ if(timer.running) return; timer.running=true; timer.lastTick=Date.now(); if(!timerInterval) timerInterval=setInterval(tick, 500); save(KEYS.timer, timer); showRandomTip(); }
-  function pauseTimer(){ timer.running=false; save(KEYS.timer, timer); if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
-  function resetTimer(){ timer.running=false; timer.remainingMs=10*60*1000; timer.lastTick=null; updateTimerUI(); save(KEYS.timer, timer); if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
-  function hydrateTimer(){ updateTimerUI(); if(timer.running){ if(!timerInterval){ timer.lastTick=Date.now(); timerInterval=setInterval(tick, 500); } } }
+  function startTimer(){ if(timer.running) return; if(timer.remainingMs<=0) timer.remainingMs = (settings.timerMinutes||10)*60*1000; timer.running=true; timer.lastTick=Date.now(); if(!timerInterval) timerInterval=setInterval(tick, 500); save(KEYS.timer, timer); showRandomTip(); updateTimerUI(); }
+  function pauseTimer(){ timer.running=false; save(KEYS.timer, timer); if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } updateTimerUI(); }
+  function resetTimer(){ timer.running=false; timer.remainingMs=(settings.timerMinutes||10)*60*1000; timer.lastTick=null; updateTimerUI(); save(KEYS.timer, timer); if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
+  function delay5(){ if(timer.running){ timer.remainingMs += 5*60*1000; } else { timer.remainingMs = 5*60*1000; timer.running=true; timer.lastTick=Date.now(); if(!timerInterval) timerInterval=setInterval(tick, 500); }
+    save(KEYS.timer, timer); showRandomTip(); updateTimerUI(); }
+  function hydrateTimer(){ // reset base if plan updated
+    if(!timer.running && (!timer.remainingMs || timer.remainingMs<=0)) timer.remainingMs=(settings.timerMinutes||10)*60*1000;
+    updateTimerUI(); if(timer.running){ if(!timerInterval){ timer.lastTick=Date.now(); timerInterval=setInterval(tick, 500); } }
+  }
+  function onTimerCompleted(){
+    // award badge for completing a timer
+    awardBadgeOnce('crave-done', 'Craving timer completed');
+    const price = perCigPrice();
+    const fmtCurrency = (n)=> new Intl.NumberFormat(undefined,{style:'currency',currencyDisplay:'symbol', currency:'INR'}).format(n||0);
+    alert(`Craving timer done! You just saved the price of 1 cigarette: ${fmtCurrency(price)}.`);
+    save(KEYS.badges, earnedBadges);
+    renderBadgesGallery(); renderDashboard();
+  }
+  function awardBadgeOnce(k, label){ const have = new Set(earnedBadges.map(b=>b.k)); if(!have.has(k)){ earnedBadges.push({k,label,ts:new Date().toISOString()}); save(KEYS.badges, earnedBadges); } }
+
   $('#timerStart').addEventListener('click', startTimer);
   $('#timerPause').addEventListener('click', pauseTimer);
   $('#timerReset').addEventListener('click', resetTimer);
+  $('#timerDelay5').addEventListener('click', delay5);
 
   // ---- PWA ----
   if('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js').catch(()=>{})); }

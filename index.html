@@ -56,11 +56,12 @@
 
         <!-- CRAVING TIMER -->
         <div class="card">
-          <h3>Craving Timer (10:00)</h3>
+          <h3>Craving Timer</h3>
           <div class="timer">
             <div class="timer-display" id="timerDisplay">10:00</div>
             <div class="row">
               <button id="timerStart" class="btn primary">Start</button>
+              <button id="timerDelay5" class="btn">Delay 5 min</button>
               <button id="timerPause" class="btn">Pause</button>
               <button id="timerReset" class="btn">Reset</button>
             </div>
@@ -68,7 +69,7 @@
           </div>
         </div>
 
-        <!-- STREAKS & BADGES -->
+        <!-- STREAKS & BADGES (live) -->
         <div class="card">
           <h3>Streaks & Badges</h3>
           <div class="streaks">
@@ -79,6 +80,12 @@
           <div class="badges-list" id="badgesList"></div>
         </div>
 
+        <!-- BADGES GALLERY (persistent) -->
+        <div class="card">
+          <h3>Badges Gallery</h3>
+          <div id="badgesGallery" class="badges-gallery"></div>
+        </div>
+
         <!-- 30-DAY LINE CHART -->
         <div class="card">
           <h3>30‑Day Line Chart</h3>
@@ -86,11 +93,11 @@
           <p class="muted">Counts per day (blue). Daily limit (gray).</p>
         </div>
 
-        <!-- TRIGGERS HEATMAP -->
+        <!-- TRIGGERS HEATMAP (HOURS × TRIGGERS) -->
         <div class="card">
-          <h3>Triggers Heatmap (Last 30 days)</h3>
-          <canvas id="heatmap" class="heatmap" width="640" height="300" aria-label="Triggers heatmap"></canvas>
-          <p class="muted">Rows = triggers, Columns = days of week (Mon → Sun). Darker = more logs.</p>
+          <h3>Triggers Heatmap (Hours × Triggers, Last 30 days)</h3>
+          <canvas id="heatmap" class="heatmap" width="640" height="340" aria-label="Triggers heatmap hours by triggers"></canvas>
+          <p class="muted">Rows = triggers, Columns = hours (0–23). Darker = more logs.</p>
         </div>
       </div>
     </section>
@@ -136,8 +143,9 @@
           <textarea id="note" rows="2" placeholder="Anything notable (time, place, craving level)…"></textarea>
         </label>
         <div class="row end">
-          <button type="submit" class="btn primary">Save</button>
+          <button type="submit" id="logSaveBtn" class="btn primary">Save</button>
         </div>
+        <p class="muted" id="loggingDisabledMsg" style="display:none">Logging is temporarily disabled while the craving timer is running.</p>
       </form>
 
       <div class="card">
@@ -178,6 +186,11 @@
           </label>
           <label>Cigs per pack
             <input type="number" id="cigsPerPack" min="1" placeholder="e.g., 20" />
+          </label>
+        </div>
+        <div class="grid-2">
+          <label>Craving timer (minutes)
+            <input type="number" id="timerMinutes" min="1" step="1" placeholder="e.g., 10" />
           </label>
         </div>
         <div class="row end">
