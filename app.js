@@ -1,4 +1,4 @@
-// SmokeLess — v3 with delay 5 min, persistent badges, hour×trigger heatmap, timer gating
+// SmokeLess — v4 with timer toasts, custom triggers editor, colored dashboard cards
 (function(){
   const $ = (sel, ctx=document) => ctx.querySelector(sel);
   const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
@@ -13,9 +13,13 @@
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
+  // Default triggers
+  const DEFAULT_TRIGGERS = ['Stress','After meal','Coffee/Tea','Alcohol','Social','Boredom','Commute','Other'];
+
   // State
   let entries = load(KEYS.entries, []);
-  let settings = load(KEYS.settings, { costPerPack: 0, cigsPerPack: 20, baseline: null, quitDate: null, plan: [], timerMinutes: 10 });
+  let settings = load(KEYS.settings, { costPerPack: 0, cigsPerPack: 20, baseline: null, quitDate: null, plan: [], timerMinutes: 10, triggers: DEFAULT_TRIGGERS.slice() });
+  if(!Array.isArray(settings.triggers) || settings.triggers.length===0) settings.triggers = DEFAULT_TRIGGERS.slice();
   let earnedBadges = load(KEYS.badges, []); // [{k,label,ts}]
 
   // Tabs
@@ -28,6 +32,7 @@
     if(id==='history') renderHistory();
     if(id==='plan') renderPlan();
     if(id==='dashboard') renderDashboard();
+    if(id==='log') renderLogTriggers();
   }));
 
   // ---- UTIL ----
@@ -39,8 +44,17 @@
   const groupByDay = (arr) => arr.reduce((acc,e)=>{ const k = e.ts.slice(0,10); (acc[k]=acc[k]||[]).push(e); return acc; },{});
   const dayTotals = (arr) => Object.fromEntries(Object.entries(groupByDay(arr)).map(([k,v])=>[k, v.reduce((s,e)=>s+Number(e.count||0),0)]));
   const getPlanLimit = (dateISO) => { const f=(settings.plan||[]).find(p=>p.date===dateISO); return f?Number(f.limit):null; };
-
+  const perCigPrice = ()=> settings.cigsPerPack ? (Number(settings.costPerPack||0)/Number(settings.cigsPerPack||1)) : 0;
   const lastNDates = (n) => { const out=[]; const now = new Date(); now.setHours(0,0,0,0); for(let i=n-1;i>=0;i--){ const d=new Date(now); d.setDate(now.getDate()-i); out.push(d); } return out; };
+
+  // ---- TOASTS ----
+  let toastId=0;
+  function showToast(msg){
+    const c = $('#toastContainer'); if(!c) return;
+    const el = document.createElement('div'); el.className='toast'; el.setAttribute('role','status'); el.textContent = msg; const id = ++toastId;
+    c.appendChild(el);
+    setTimeout(()=>{ el.style.opacity=0; el.style.transform='translateY(8px)'; setTimeout(()=> el.remove(), 300); }, 4200);
+  }
 
   // ---- DASHBOARD ----
   function renderDashboard(){
@@ -60,6 +74,7 @@
     drawTriggersHeatmapHours();
     hydrateTimer();
     renderBadgesGallery();
+    renderTriggersEditor();
   }
 
   // 7-day trend sparkline
@@ -93,7 +108,6 @@
     $('#moneySpent').textContent = fmtCurrency(spent);
     $('#moneySaved').textContent = fmtCurrency(saved);
   }
-  function perCigPrice(){ return settings.cigsPerPack ? (Number(settings.costPerPack||0)/Number(settings.cigsPerPack||1)) : 0; }
 
   // Quick log & undo (gated by timer)
   $('#quickLog1').addEventListener('click', ()=> addEntry({count:1}));
@@ -106,13 +120,12 @@
     if(timer.running){ alert('Craving timer is running — logging is disabled until it ends.'); return; }
     const count = Number($('#count').value||1);
     const when = $('#when').value ? new Date($('#when').value) : new Date();
-    const trigger = $('#trigger').value || '';
+    const trigger = $('#triggerSelect').value || '';
     const mood = $('#mood').value || '';
     const note = $('#note').value?.trim() || '';
     addEntry({count, ts: when.toISOString(), trigger, mood, note});
-    logForm.reset();
+    logForm.reset(); renderLogTriggers();
   });
-  $$('#log .chip').forEach(ch => ch.addEventListener('click', ()=>{ $('#trigger').value = ch.dataset.trigger; $('#count').value = 1; $('#when').value=''; $('#mood').value=''; $('#note').value=''; $('#count').focus(); }));
 
   function addEntry({count=1, ts=(new Date()).toISOString(), trigger='', mood='', note=''}){
     if(timer.running){ alert('Craving timer is running — logging is disabled until it ends.'); return; }
@@ -147,6 +160,39 @@
       });
       list.appendChild(wrapper);
     }
+  }
+
+  // ---- TRIGGERS (customizable) ----
+  function renderLogTriggers(){
+    // select
+    const sel = $('#triggerSelect'); sel.innerHTML='';
+    const optEmpty = document.createElement('option'); optEmpty.value=''; optEmpty.textContent='— choose —'; sel.appendChild(optEmpty);
+    settings.triggers.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; sel.appendChild(o); });
+    // chips
+    const chips = $('#chipsRow'); chips.innerHTML='';
+    settings.triggers.forEach(t=>{ const b=document.createElement('button'); b.type='button'; b.className='chip'; b.textContent=t; b.addEventListener('click', ()=>{ if(timer.running){ showToast('Timer running — logging disabled.'); return; } $('#triggerSelect').value=t; $('#count').value=1; $('#when').value=''; $('#mood').value=''; $('#note').value=''; $('#count').focus(); }); chips.appendChild(b); });
+    setLoggingGatedState();
+  }
+
+  function renderTriggersEditor(){
+    const wrap = $('#triggersEditor'); if(!wrap) return; wrap.innerHTML='';
+    if(!settings.triggers || settings.triggers.length===0){ settings.triggers = DEFAULT_TRIGGERS.slice(); }
+    settings.triggers.forEach((t,idx)=>{
+      const row = document.createElement('div'); row.className='row'; row.style.justifyContent='space-between'; row.style.margin='6px 0';
+      const label = document.createElement('div'); label.textContent = t;
+      const actions = document.createElement('div'); actions.className='row';
+      const up = document.createElement('button'); up.className='btn'; up.textContent='↑'; up.title='Move up'; up.addEventListener('click',()=>{ if(idx>0){ const tmp=settings.triggers[idx-1]; settings.triggers[idx-1]=settings.triggers[idx]; settings.triggers[idx]=tmp; save(KEYS.settings, settings); renderTriggersEditor(); renderLogTriggers(); }});
+      const down = document.createElement('button'); down.className='btn'; down.textContent='↓'; down.title='Move down'; down.addEventListener('click',()=>{ if(idx<settings.triggers.length-1){ const tmp=settings.triggers[idx+1]; settings.triggers[idx+1]=settings.triggers[idx]; settings.triggers[idx]=tmp; save(KEYS.settings, settings); renderTriggersEditor(); renderLogTriggers(); }});
+      const del = document.createElement('button'); del.className='btn danger'; del.textContent='Delete'; del.addEventListener('click',()=>{ if(confirm(`Delete trigger "${t}"?`)){ settings.triggers.splice(idx,1); save(KEYS.settings, settings); renderTriggersEditor(); renderLogTriggers(); }});
+      actions.appendChild(up); actions.appendChild(down); actions.appendChild(del);
+      row.appendChild(label); row.appendChild(actions); wrap.appendChild(row);
+    });
+
+    $('#addTriggerBtn').onclick = ()=>{
+      const val = ($('#newTrigger').value||'').trim(); if(!val) return;
+      if(settings.triggers.includes(val)){ showToast('Trigger already exists.'); return; }
+      settings.triggers.push(val); save(KEYS.settings, settings); $('#newTrigger').value=''; renderTriggersEditor(); renderLogTriggers();
+    };
   }
 
   // ---- PLAN ----
@@ -189,7 +235,7 @@
     settings.cigsPerPack = Number($('#cigsPerPack').value||settings.cigsPerPack||20);
     settings.timerMinutes = Math.max(1, Number($('#timerMinutes').value||settings.timerMinutes||10));
     if(baseline>0){ settings.plan = generatePlan(baseline, qd); }
-    save(KEYS.settings, settings); renderPlan(); renderDashboard();
+    save(KEYS.settings, settings); renderPlan(); renderDashboard(); renderLogTriggers();
   });
   $('#clearPlan').addEventListener('click', ()=>{ if(confirm('Clear your plan?')){ settings.plan=[]; save(KEYS.settings, settings); renderPlan(); renderDashboard(); }});
 
@@ -213,14 +259,14 @@
   function mergeData(newEntries, newSettings, newBadges){
     const existingIds = new Set(entries.map(e=>e.id)); let added = 0; newEntries.forEach(e=>{ if(!existingIds.has(e.id)){ entries.push(e); added++; }});
     entries.sort((a,b)=> a.ts.localeCompare(b.ts));
-    // merge settings (shallow)
     settings = { ...settings, ...newSettings };
-    // merge badges by key
+    // default triggers after merge if missing
+    if(!Array.isArray(settings.triggers) || settings.triggers.length===0) settings.triggers = DEFAULT_TRIGGERS.slice();
     const have = new Set(earnedBadges.map(b=>b.k));
     newBadges.forEach(b=>{ if(b && b.k && !have.has(b.k)){ earnedBadges.push(b); have.add(b.k); }});
     save(KEYS.entries, entries); save(KEYS.settings, settings); save(KEYS.badges, earnedBadges);
     alert(`Import complete. ${added} new entries merged.`);
-    renderDashboard(); renderHistory(); renderPlan();
+    renderDashboard(); renderHistory(); renderPlan(); renderLogTriggers();
   }
 
   // ---- STREAKS & BADGES ----
@@ -240,7 +286,6 @@
     }
     $('#streakWithin').textContent = within; $('#streakZero').textContent = zero;
 
-    // weekly improvement
     const d14 = lastNDates(14); const last7 = d14.slice(7), prev7 = d14.slice(0,7);
     const sum = (arr)=> arr.reduce((s,d)=>{ const k=todayKey(d); return s + (totals[k]||0); },0);
     const last7sum = sum(last7), prev7sum = sum(prev7);
@@ -250,7 +295,6 @@
     else { weeklyChange = '0% (no logs)'; }
     $('#weeklyChange').textContent = weeklyChange;
 
-    // transient badges based on current state
     const badges = [];
     if(within>=1) badges.push({k:'first-within', label:'First day within limit'});
     if(within>=3) badges.push({k:'within-3', label:'3‑day within‑limit streak'});
@@ -259,12 +303,10 @@
     if(zero>=3) badges.push({k:'zero-3', label:'72 hours clear'});
     if(prev7sum>0 && (prev7sum-last7sum)/prev7sum>=0.2) badges.push({k:'drop-20', label:'20% weekly drop'});
 
-    // display transient badges
     const wrap = $('#badgesList'); wrap.innerHTML='';
     if(badges.length===0){ wrap.innerHTML = '<span class="muted">No new badges yet — you got this!</span>'; }
     else badges.forEach(b=>{ const el=document.createElement('span'); el.className='badge'; el.textContent=b.label; wrap.appendChild(el); });
 
-    // persist newly earned badges (by key)
     const have = new Set(earnedBadges.map(b=>b.k));
     badges.forEach(b=>{ if(!have.has(b.k)){ earnedBadges.push({ ...b, ts: new Date().toISOString() }); have.add(b.k); }});
     save(KEYS.badges, earnedBadges);
@@ -297,9 +339,8 @@
 
   function drawTriggersHeatmapHours(){
     const canvas = $('#heatmap'); if(!canvas) return; const ctx = setCanvasSize(canvas);
-    const triggers = ['Stress','After meal','Coffee/Tea','Alcohol','Social','Boredom','Commute','Other',''];
+    const triggers = settings.triggers.concat(['']); // include empty as Other/None
     const dates = lastNDates(30); const startMs = dates[0].getTime();
-    // counts by trigger x hour(0..23)
     const counts = {}; triggers.forEach(t=> counts[t]=Array(24).fill(0));
     entries.forEach(e=>{ const dt = new Date(e.ts); if(dt.getTime()>=startMs){ const hour = dt.getHours(); const trig = e.trigger||''; const t = triggers.includes(trig)?trig:''; counts[t][hour] += Number(e.count||0); } });
 
@@ -321,7 +362,8 @@
   }
 
   // ---- CRAVING TIMER ----
-  let timer = load(KEYS.timer, { remainingMs: (settings.timerMinutes||10)*60*1000, running: false, lastTick: null });
+  let timer = load(KEYS.timer, { remainingMs: (settings.timerMinutes||10)*60*1000, running: false, lastTick: null, milestones:{} });
+  if(!timer.milestones) timer.milestones = {};
   let timerInterval = null;
   const tips = [
     'Take 10 slow breaths — in through the nose, out through the mouth.',
@@ -335,34 +377,34 @@
   function formatMMSS(ms){ const s=Math.max(0,Math.floor(ms/1000)); const m=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
   function updateTimerUI(){ $('#timerDisplay').textContent = formatMMSS(timer.remainingMs); setLoggingGatedState(); }
   function showRandomTip(){ $('#timerTip').textContent = 'Tip: ' + tips[Math.floor(Math.random()*tips.length)]; }
-  function setLoggingGatedState(){
-    const gating = !!timer.running;
-    $('#quickLog1').disabled = gating;
-    $('#logSaveBtn').disabled = gating;
-    $('#loggingDisabledMsg').style.display = gating? 'block':'none';
+  function setLoggingGatedState(){ const gating = !!timer.running; $('#quickLog1').disabled = gating; $('#logSaveBtn').disabled = gating; $$('#chipsRow .chip').forEach(ch => ch.disabled = gating); $('#loggingDisabledMsg').style.display = gating? 'block':'none'; }
+
+  function maybeToastMilestones(){
+    // Show toasts at 5:00 and 2:00 remaining
+    const ms5 = 5*60*1000, ms2 = 2*60*1000;
+    if(timer.running){
+      if(timer.remainingMs <= ms5 && !timer.milestones['m5']){ showToast('5:00 left — walk for 2 minutes?'); timer.milestones['m5']=true; }
+      if(timer.remainingMs <= ms2 && !timer.milestones['m2']){ showToast('2:00 left — sip some water.'); timer.milestones['m2']=true; }
+    }
   }
+
   function tick(){
-    if(!timer.running) return; const now = Date.now(); const last = timer.lastTick || now; const diff = now - last; timer.remainingMs = Math.max(0, timer.remainingMs - diff); timer.lastTick = now; updateTimerUI();
+    if(!timer.running) return; const now = Date.now(); const last = timer.lastTick || now; const diff = now - last; timer.remainingMs = Math.max(0, timer.remainingMs - diff); timer.lastTick = now; maybeToastMilestones(); updateTimerUI();
     if(timer.remainingMs===0){ clearInterval(timerInterval); timerInterval=null; timer.running=false; showRandomTip(); onTimerCompleted(); }
     save(KEYS.timer, timer);
   }
-  function startTimer(){ if(timer.running) return; if(timer.remainingMs<=0) timer.remainingMs = (settings.timerMinutes||10)*60*1000; timer.running=true; timer.lastTick=Date.now(); if(!timerInterval) timerInterval=setInterval(tick, 500); save(KEYS.timer, timer); showRandomTip(); updateTimerUI(); }
+  function startTimer(){ if(timer.running) return; if(timer.remainingMs<=0) timer.remainingMs = (settings.timerMinutes||10)*60*1000; timer.running=true; timer.lastTick=Date.now(); timer.milestones={}; if(!timerInterval) timerInterval=setInterval(tick, 500); save(KEYS.timer, timer); showRandomTip(); updateTimerUI(); showToast('Craving timer started — you got this.'); }
   function pauseTimer(){ timer.running=false; save(KEYS.timer, timer); if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } updateTimerUI(); }
-  function resetTimer(){ timer.running=false; timer.remainingMs=(settings.timerMinutes||10)*60*1000; timer.lastTick=null; updateTimerUI(); save(KEYS.timer, timer); if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
-  function delay5(){ if(timer.running){ timer.remainingMs += 5*60*1000; } else { timer.remainingMs = 5*60*1000; timer.running=true; timer.lastTick=Date.now(); if(!timerInterval) timerInterval=setInterval(tick, 500); }
-    save(KEYS.timer, timer); showRandomTip(); updateTimerUI(); }
-  function hydrateTimer(){ // reset base if plan updated
-    if(!timer.running && (!timer.remainingMs || timer.remainingMs<=0)) timer.remainingMs=(settings.timerMinutes||10)*60*1000;
-    updateTimerUI(); if(timer.running){ if(!timerInterval){ timer.lastTick=Date.now(); timerInterval=setInterval(tick, 500); } }
-  }
+  function resetTimer(){ timer.running=false; timer.remainingMs=(settings.timerMinutes||10)*60*1000; timer.lastTick=null; timer.milestones={}; updateTimerUI(); save(KEYS.timer, timer); if(timerInterval){ clearInterval(timerInterval); timerInterval=null; } }
+  function delay5(){ if(timer.running){ timer.remainingMs += 5*60*1000; } else { timer.remainingMs = 5*60*1000; timer.running=true; timer.lastTick=Date.now(); timer.milestones={}; if(!timerInterval) timerInterval=setInterval(tick, 500); }
+    save(KEYS.timer, timer); showRandomTip(); updateTimerUI(); showToast('Delay added: +5:00'); }
+  function hydrateTimer(){ if(!timer.running && (!timer.remainingMs || timer.remainingMs<=0)) timer.remainingMs=(settings.timerMinutes||10)*60*1000; updateTimerUI(); if(timer.running){ if(!timerInterval){ timer.lastTick=Date.now(); timerInterval=setInterval(tick, 500); } } }
+
   function onTimerCompleted(){
-    // award badge for completing a timer
     awardBadgeOnce('crave-done', 'Craving timer completed');
-    const price = perCigPrice();
-    const fmtCurrency = (n)=> new Intl.NumberFormat(undefined,{style:'currency',currencyDisplay:'symbol', currency:'INR'}).format(n||0);
-    alert(`Craving timer done! You just saved the price of 1 cigarette: ${fmtCurrency(price)}.`);
-    save(KEYS.badges, earnedBadges);
-    renderBadgesGallery(); renderDashboard();
+    const price = perCigPrice(); const fmtCurrency = (n)=> new Intl.NumberFormat(undefined,{style:'currency',currencyDisplay:'symbol', currency:'INR'}).format(n||0);
+    showToast(`Timer done! Saved ≈ ${fmtCurrency(price)} (1 cigarette). Nicely done.`);
+    save(KEYS.badges, earnedBadges); renderBadgesGallery(); renderDashboard();
   }
   function awardBadgeOnce(k, label){ const have = new Set(earnedBadges.map(b=>b.k)); if(!have.has(k)){ earnedBadges.push({k,label,ts:new Date().toISOString()}); save(KEYS.badges, earnedBadges); } }
 
@@ -374,6 +416,6 @@
   // ---- PWA ----
   if('serviceWorker' in navigator){ window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js').catch(()=>{})); }
 
-  // Initial render
-  renderDashboard();
+  // Initial renders
+  renderDashboard(); renderLogTriggers();
 })();

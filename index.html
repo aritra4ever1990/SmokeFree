@@ -23,11 +23,14 @@
     </nav>
   </header>
 
+  <!-- Toasts -->
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
   <main>
     <!-- DASHBOARD -->
     <section id="dashboard" class="tab-panel active" aria-labelledby="Dashboard">
       <div class="cards">
-        <div class="card">
+        <div class="card card-today">
           <h3>Today</h3>
           <p class="muted">Cigarettes logged</p>
           <div class="metric"><span id="todayCount">0</span></div>
@@ -41,13 +44,13 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="card card-trend">
           <h3>7‑Day Trend</h3>
           <div id="sparkline" class="sparkline" aria-label="Last 7 days bar sparkline"></div>
           <p class="muted" id="weeklySummary"></p>
         </div>
 
-        <div class="card">
+        <div class="card card-money">
           <h3>Money</h3>
           <p class="muted">Estimated spend this month</p>
           <div class="metric"> <span id="moneySpent">₹0</span></div>
@@ -55,7 +58,7 @@
         </div>
 
         <!-- CRAVING TIMER -->
-        <div class="card">
+        <div class="card card-timer">
           <h3>Craving Timer</h3>
           <div class="timer">
             <div class="timer-display" id="timerDisplay">10:00</div>
@@ -70,7 +73,7 @@
         </div>
 
         <!-- STREAKS & BADGES (live) -->
-        <div class="card">
+        <div class="card card-streaks">
           <h3>Streaks & Badges</h3>
           <div class="streaks">
             <div>Within‑limit streak: <strong id="streakWithin">0</strong> days</div>
@@ -81,23 +84,34 @@
         </div>
 
         <!-- BADGES GALLERY (persistent) -->
-        <div class="card">
+        <div class="card card-gallery">
           <h3>Badges Gallery</h3>
           <div id="badgesGallery" class="badges-gallery"></div>
         </div>
 
         <!-- 30-DAY LINE CHART -->
-        <div class="card">
+        <div class="card card-linechart">
           <h3>30‑Day Line Chart</h3>
           <canvas id="chart30" class="chart" width="640" height="260" aria-label="30 day line chart"></canvas>
           <p class="muted">Counts per day (blue). Daily limit (gray).</p>
         </div>
 
         <!-- TRIGGERS HEATMAP (HOURS × TRIGGERS) -->
-        <div class="card">
+        <div class="card card-heatmap">
           <h3>Triggers Heatmap (Hours × Triggers, Last 30 days)</h3>
           <canvas id="heatmap" class="heatmap" width="640" height="340" aria-label="Triggers heatmap hours by triggers"></canvas>
           <p class="muted">Rows = triggers, Columns = hours (0–23). Darker = more logs.</p>
+        </div>
+
+        <!-- CUSTOM TRIGGERS EDITOR -->
+        <div class="card card-triggers">
+          <h3>Custom Triggers</h3>
+          <div id="triggersEditor"></div>
+          <div class="row" style="margin-top:8px; gap:8px;">
+            <input id="newTrigger" type="text" placeholder="Add new trigger" />
+            <button id="addTriggerBtn" class="btn">Add</button>
+          </div>
+          <p class="muted">Tip: Adjust the list to match your habits. This updates the Log dropdown and quick chips.</p>
         </div>
       </div>
     </section>
@@ -116,16 +130,8 @@
         </div>
         <div class="grid-2">
           <label>Trigger
-            <select id="trigger">
-              <option value="">— choose —</option>
-              <option>Stress</option>
-              <option>After meal</option>
-              <option>Coffee/Tea</option>
-              <option>Alcohol</option>
-              <option>Social</option>
-              <option>Boredom</option>
-              <option>Commute</option>
-              <option>Other</option>
+            <select id="triggerSelect">
+              <!-- options injected dynamically -->
             </select>
           </label>
           <label>Mood
@@ -150,12 +156,8 @@
 
       <div class="card">
         <h3>Quick actions</h3>
-        <div class="row wrap">
-          <button class="chip" data-trigger="Stress">Stress</button>
-          <button class="chip" data-trigger="After meal">After meal</button>
-          <button class="chip" data-trigger="Coffee/Tea">Coffee/Tea</button>
-          <button class="chip" data-trigger="Social">Social</button>
-          <button class="chip" data-trigger="Boredom">Boredom</button>
+        <div id="chipsRow" class="row wrap">
+          <!-- chips injected dynamically -->
         </div>
       </div>
     </section>
