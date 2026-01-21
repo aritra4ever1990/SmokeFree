@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SmokeLess — Personal Smoking Tracker</title>
+  <meta name="description" content="Track your smoking, build a taper plan, and quit within 3 months." />
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#0ea5e9" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🚭 SmokeLess</h1>
+    <nav class="tabs" role="tablist">
+      <button class="tab-btn active" data-tab="dashboard" aria-selected="true">Dashboard</button>
+      <button class="tab-btn" data-tab="log">Log</button>
+      <button class="tab-btn" data-tab="history">History</button>
+      <button class="tab-btn" data-tab="plan">Plan</button>
+      <button class="tab-btn" data-tab="data">Data</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="dashboard" class="tab-panel active" aria-labelledby="Dashboard">
+      <div class="cards">
+        <div class="card">
+          <h3>Today</h3>
+          <p class="muted">Cigarettes logged</p>
+          <div class="metric"><span id="todayCount">0</span></div>
+          <div class="meta">
+            <span>Limit: <strong id="todayLimit">—</strong></span>
+            <span>Remaining: <strong id="remaining">—</strong></span>
+          </div>
+          <div class="row">
+            <button id="quickLog1" class="btn primary">+ Log 1</button>
+            <button id="undoLast" class="btn">Undo last</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>7‑Day Trend</h3>
+          <div id="sparkline" class="sparkline" aria-label="Last 7 days bar sparkline"></div>
+          <p class="muted" id="weeklySummary"></p>
+        </div>
+
+        <div class="card">
+          <h3>Money</h3>
+          <p class="muted">Estimated spend this month</p>
+          <div class="metric"> <span id="moneySpent">₹0</span></div>
+          <p class="muted">vs baseline you could be saving <strong id="moneySaved">₹0</strong></p>
+        </div>
+
+        <!-- CRAVING TIMER -->
+        <div class="card">
+          <h3>Craving Timer (10:00)</h3>
+          <div class="timer">
+            <div class="timer-display" id="timerDisplay">10:00</div>
+            <div class="row">
+              <button id="timerStart" class="btn primary">Start</button>
+              <button id="timerPause" class="btn">Pause</button>
+              <button id="timerReset" class="btn">Reset</button>
+            </div>
+            <p class="muted" id="timerTip">Tip: Take 10 slow breaths—in through the nose, out through the mouth.</p>
+          </div>
+        </div>
+
+        <!-- STREAKS & BADGES -->
+        <div class="card">
+          <h3>Streaks & Badges</h3>
+          <div class="streaks">
+            <div>Within‑limit streak: <strong id="streakWithin">0</strong> days</div>
+            <div>Zero‑day streak: <strong id="streakZero">0</strong> days</div>
+            <div>Weekly change: <strong id="weeklyChange">—</strong></div>
+          </div>
+          <div class="badges-list" id="badgesList"></div>
+        </div>
+
+        <!-- 30-DAY LINE CHART -->
+        <div class="card">
+          <h3>30‑Day Line Chart</h3>
+          <canvas id="chart30" class="chart" width="640" height="260" aria-label="30 day line chart"></canvas>
+          <p class="muted">Counts per day (blue). Daily limit (gray).</p>
+        </div>
+
+        <!-- TRIGGERS HEATMAP -->
+        <div class="card">
+          <h3>Triggers Heatmap (Last 30 days)</h3>
+          <canvas id="heatmap" class="heatmap" width="640" height="300" aria-label="Triggers heatmap"></canvas>
+          <p class="muted">Rows = triggers, Columns = days of week (Mon → Sun). Darker = more logs.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOG -->
+    <section id="log" class="tab-panel" aria-labelledby="Log">
+      <form id="logForm" class="card form">
+        <h3>Log a cigarette</h3>
+        <div class="grid-2">
+          <label>Count
+            <input type="number" id="count" min="1" value="1" required />
+          </label>
+          <label>Time
+            <input type="datetime-local" id="when" />
+          </label>
+        </div>
+        <div class="grid-2">
+          <label>Trigger
+            <select id="trigger">
+              <option value="">— choose —</option>
+              <option>Stress</option>
+              <option>After meal</option>
+              <option>Coffee/Tea</option>
+              <option>Alcohol</option>
+              <option>Social</option>
+              <option>Boredom</option>
+              <option>Commute</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>Mood
+            <select id="mood">
+              <option value="">— choose —</option>
+              <option>Calm</option>
+              <option>Neutral</option>
+              <option>Stressed</option>
+              <option>Anxious</option>
+              <option>Happy</option>
+            </select>
+          </label>
+        </div>
+        <label>Notes
+          <textarea id="note" rows="2" placeholder="Anything notable (time, place, craving level)…"></textarea>
+        </label>
+        <div class="row end">
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+
+      <div class="card">
+        <h3>Quick actions</h3>
+        <div class="row wrap">
+          <button class="chip" data-trigger="Stress">Stress</button>
+          <button class="chip" data-trigger="After meal">After meal</button>
+          <button class="chip" data-trigger="Coffee/Tea">Coffee/Tea</button>
+          <button class="chip" data-trigger="Social">Social</button>
+          <button class="chip" data-trigger="Boredom">Boredom</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="history" class="tab-panel" aria-labelledby="History">
+      <div class="card">
+        <h3>Recent entries</h3>
+        <div id="historyList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- PLAN -->
+    <section id="plan" class="tab-panel" aria-labelledby="Plan">
+      <div class="card form">
+        <h3>3‑Month Quit Plan</h3>
+        <div class="grid-2">
+          <label>Baseline daily average (cigs/day)
+            <input type="number" id="baseline" min="1" placeholder="e.g., 12" />
+          </label>
+          <label>Quit date
+            <input type="date" id="quitDate" />
+          </label>
+        </div>
+        <div class="grid-2">
+          <label>Cost per pack
+            <input type="number" id="costPerPack" min="0" step="0.01" placeholder="e.g., 150" />
+          </label>
+          <label>Cigs per pack
+            <input type="number" id="cigsPerPack" min="1" placeholder="e.g., 20" />
+          </label>
+        </div>
+        <div class="row end">
+          <button id="generatePlan" class="btn">Generate/Update Plan</button>
+          <button id="clearPlan" class="btn danger">Clear Plan</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Daily Limits (next 90 days)</h3>
+        <div id="planGrid" class="plan-grid"></div>
+      </div>
+    </section>
+
+    <!-- DATA -->
+    <section id="data" class="tab-panel" aria-labelledby="Data">
+      <div class="card form">
+        <h3>Export / Import</h3>
+        <div class="grid-2">
+          <div>
+            <p class="muted">Download your data as JSON or CSV.</p>
+            <div class="row">
+              <button id="exportJson" class="btn">Export JSON</button>
+              <button id="exportCsv" class="btn">Export CSV</button>
+            </div>
+          </div>
+          <div>
+            <label class="file">
+              <span>Import JSON/CSV</span>
+              <input type="file" id="importFile" accept=".json,.csv" />
+            </label>
+            <p class="muted">Import merges with existing data. Duplicates by id are ignored.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <small>Made for you to take back control. Data stays on your device.</small>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
