@@ -1,2 +1,2 @@
-id,ts,count,trigger,mood,note
-"demo1","2026-01-21T11:36:31.389806",1,"Stress","Neutral","Sample log entry"
+type,id,ts,count,trigger,mood,action,note
+"smoke","demo1","2026-01-24T18:59:24.152076",1,"Stress","Neutral","","Sample log entry"
