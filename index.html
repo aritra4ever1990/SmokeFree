@@ -24,8 +24,8 @@
       </label>
     </div>
     <nav class="tabs" role="tablist">
-      <button class="tab-btn active" data-tab="dashboard" aria-selected="true">Dashboard</button>
-      <button class="tab-btn" data-tab="log">Log</button>
+      <button class="tab-btn" data-tab="dashboard" aria-selected="false">Dashboard</button>
+      <button class="tab-btn active" data-tab="log" aria-selected="true">Log</button>
       <button class="tab-btn" data-tab="history">History</button>
       <button class="tab-btn" data-tab="plan">Plan</button>
       <button class="tab-btn" data-tab="data">Data</button>
@@ -37,9 +37,9 @@
 
   <main>
     <!-- DASHBOARD -->
-    <section id="dashboard" class="tab-panel active" aria-labelledby="Dashboard">
-      <div class="cards">
-        <div class="card card-today">
+    <section id="dashboard" class="tab-panel" aria-labelledby="Dashboard">
+      <div id="cardsContainer" class="cards">
+        <div class="card card-today" draggable="true" data-card="today">
           <h3>Today</h3>
           <p class="muted">Cigarettes logged</p>
           <div class="metric"><span id="todayCount">0</span></div>
@@ -48,42 +48,61 @@
             <span>Remaining: <strong id="remaining">—</strong></span>
           </div>
           <div class="row">
-            <button id="quickLog1" class="btn primary">+ Log 1</button>
-            <button id="undoLast" class="btn">Undo last</button>
+            <button id="quickLog1" class="btn primary" data-nodrag>+ Log 1</button>
+            <button id="undoLast" class="btn" data-nodrag>Undo last</button>
           </div>
         </div>
 
-        <div class="card card-trend">
+        <div class="card card-trend" draggable="true" data-card="trend">
           <h3>7‑Day Trend</h3>
           <div id="sparkline" class="sparkline" aria-label="Last 7 days bar sparkline"></div>
           <p class="muted" id="weeklySummary"></p>
         </div>
 
-        <div class="card card-money">
+        <div class="card card-money" draggable="true" data-card="money">
           <h3>Money</h3>
           <p class="muted">Estimated spend this month</p>
           <div class="metric"> <span id="moneySpent">₹0</span></div>
           <p class="muted">vs baseline you could be saving <strong id="moneySaved">₹0</strong></p>
-          <p class="muted">Craving savings (timers) <strong id="moneyCravingSaved">₹0</strong></p>
+          <p class="muted">Craving savings (this month) <strong id="moneyCravingSaved">₹0</strong></p>
+          <p class="muted">Total craving savings (to date) <strong id="moneyCravingSavedTotal">₹0</strong></p>
+          <div class="progress" title="Savings goal progress">
+            <div id="savingsProgressBar" class="progress-bar"></div>
+          </div>
+          <p class="muted">Goal: <strong id="savingsGoalText">—</strong> • Progress: <strong id="savingsProgressPct">0%</strong></p>
         </div>
 
         <!-- CRAVING TIMER -->
-        <div class="card card-timer">
+        <div class="card card-timer" draggable="true" data-card="timer">
           <h3>Craving Timer</h3>
           <div class="timer">
             <div class="timer-display" id="timerDisplay">10:00</div>
+            <div class="grid-2">
+              <label>Craving intensity (1–5)
+                <select id="cravingIntensity" data-nodrag>
+                  <option>1</option>
+                  <option>2</option>
+                  <option selected>3</option>
+                  <option>4</option>
+                  <option>5</option>
+                </select>
+              </label>
+              <label>Optional note
+                <input type="text" id="cravingNote" placeholder="e.g., after coffee" data-nodrag />
+              </label>
+            </div>
             <div class="row">
-              <button id="timerStart" class="btn primary">Start</button>
-              <button id="timerDelay5" class="btn">Delay 5 min</button>
-              <button id="timerPause" class="btn">Pause</button>
-              <button id="timerReset" class="btn">Reset</button>
+              <button id="timerStart" class="btn primary" data-nodrag>Start</button>
+              <button id="timerDelay5" class="btn" data-nodrag>Delay 5 min</button>
+              <button id="timerPause" class="btn" data-nodrag>Pause</button>
+              <button id="timerReset" class="btn" data-nodrag>Reset</button>
             </div>
             <p class="muted" id="timerTip">Tip: Take 10 slow breaths—in through the nose, out through the mouth.</p>
           </div>
         </div>
 
         <!-- STREAKS & BADGES (live) -->
-        <div class="card card-streaks">
+        <div class="card card-streaks" draggable="true" data-card="streaks">
           <h3>Streaks & Badges</h3>
           <div class="streaks">
             <div>Within‑limit streak: <strong id="streakWithin">0</strong> days</div>
@@ -94,26 +113,26 @@
         </div>
 
         <!-- BADGES GALLERY with filter -->
-        <div class="card card-gallery">
+        <div class="card card-gallery" draggable="true" data-card="gallery">
           <h3>Badges Gallery</h3>
           <div class="row wrap" id="badgesFilter" style="gap:8px; margin-bottom:8px;">
-            <button class="chip" data-cat="all">All</button>
-            <button class="chip" data-cat="streaks">Streaks</button>
-            <button class="chip" data-cat="timer">Timer</button>
-            <button class="chip" data-cat="savings">Savings</button>
+            <button class="chip" data-cat="all" data-nodrag>All</button>
+            <button class="chip" data-cat="streaks" data-nodrag>Streaks</button>
+            <button class="chip" data-cat="timer" data-nodrag>Timer</button>
+            <button class="chip" data-cat="savings" data-nodrag>Savings</button>
           </div>
           <div id="badgesGallery" class="badges-gallery"></div>
         </div>
 
         <!-- 30-DAY LINE CHART -->
-        <div class="card card-linechart">
+        <div class="card card-linechart" draggable="true" data-card="linechart">
           <h3>30‑Day Line Chart</h3>
           <canvas id="chart30" class="chart" width="640" height="260" aria-label="30 day line chart"></canvas>
           <p class="muted">Counts per day (blue). Daily limit (gray).</p>
         </div>
 
         <!-- TRIGGERS HEATMAP (HOURS × TRIGGERS) -->
-        <div class="card card-heatmap">
+        <div class="card card-heatmap" draggable="true" data-card="heatmap">
           <h3>Triggers Heatmap (Hours × Triggers, Last 30 days)</h3>
           <canvas id="heatmap" class="heatmap" width="640" height="340" aria-label="Triggers heatmap hours by triggers"></canvas>
           <p class="muted">Rows = triggers, Columns = hours (0–23). Darker = more logs.</p>
@@ -121,26 +140,24 @@
       </div>
     </section>
 
-    <!-- LOG -->
-    <section id="log" class="tab-panel" aria-labelledby="Log">
+    <!-- LOG (default) -->
+    <section id="log" class="tab-panel active" aria-labelledby="Log">
       <form id="logForm" class="card form">
         <h3>Log a cigarette</h3>
         <div class="grid-2">
           <label>Count
-            <input type="number" id="count" min="1" value="1" required />
+            <input type="number" id="count" min="1" value="1" required data-nodrag />
           </label>
           <label>Time
-            <input type="datetime-local" id="when" />
+            <input type="datetime-local" id="when" data-nodrag />
           </label>
         </div>
         <div class="grid-2">
           <label>Trigger
-            <select id="triggerSelect">
-              <!-- options injected dynamically -->
-            </select>
+            <select id="triggerSelect" data-nodrag></select>
           </label>
           <label>Mood
-            <select id="mood">
+            <select id="mood" data-nodrag>
               <option value="">— choose —</option>
               <option>Calm</option>
               <option>Neutral</option>
@@ -151,19 +168,17 @@
           </label>
         </div>
         <label>Notes
-          <textarea id="note" rows="2" placeholder="Anything notable (time, place, craving level)…"></textarea>
+          <textarea id="note" rows="2" placeholder="Anything notable (time, place, craving level)…" data-nodrag></textarea>
         </label>
         <div class="row end">
-          <button type="submit" id="logSaveBtn" class="btn primary">Save</button>
+          <button type="submit" id="logSaveBtn" class="btn primary" data-nodrag>Save</button>
         </div>
         <p class="muted" id="loggingDisabledMsg" style="display:none">Logging is temporarily disabled while the craving timer is running.</p>
       </form>
 
       <div class="card">
         <h3>Quick actions</h3>
-        <div id="chipsRow" class="row wrap">
-          <!-- chips injected dynamically -->
-        </div>
+        <div id="chipsRow" class="row wrap"></div>
       </div>
     </section>
 
@@ -181,42 +196,61 @@
         <h3>3‑Month Quit Plan</h3>
         <div class="grid-2">
           <label>Baseline daily average (cigs/day)
-            <input type="number" id="baseline" min="1" placeholder="e.g., 12" />
+            <input type="number" id="baseline" min="1" placeholder="e.g., 12" data-nodrag />
           </label>
           <label>Quit date
-            <input type="date" id="quitDate" />
+            <input type="date" id="quitDate" data-nodrag />
           </label>
         </div>
         <div class="grid-2">
           <label>Cost per pack
-            <input type="number" id="costPerPack" min="0" step="0.01" placeholder="e.g., 150" />
+            <input type="number" id="costPerPack" min="0" step="0.01" placeholder="e.g., 150" data-nodrag />
           </label>
           <label>Cigs per pack
-            <input type="number" id="cigsPerPack" min="1" placeholder="e.g., 20" />
+            <input type="number" id="cigsPerPack" min="1" placeholder="e.g., 20" data-nodrag />
           </label>
         </div>
         <div class="grid-2">
           <label>Craving timer (minutes)
-            <input type="number" id="timerMinutes" min="1" step="1" placeholder="e.g., 10" />
+            <input type="number" id="timerMinutes" min="1" step="1" placeholder="e.g., 10" data-nodrag />
           </label>
         </div>
         <div class="row end">
-          <button id="generatePlan" class="btn">Generate/Update Plan</button>
-          <button id="clearPlan" class="btn danger">Clear Plan</button>
+          <button id="generatePlan" class="btn" data-nodrag>Generate/Update Plan</button>
+          <button id="clearPlan" class="btn danger" data-nodrag>Clear Plan</button>
         </div>
       </div>
 
       <div class="card form">
         <h3>Triggers</h3>
         <label>Current triggers
-          <select id="planTriggersSelect" multiple size="6"></select>
+          <select id="planTriggersSelect" multiple size="6" data-nodrag></select>
         </label>
         <div id="planTriggersEditor"></div>
         <div class="row" style="margin-top:8px; gap:8px;">
-          <input id="planNewTrigger" type="text" placeholder="Add new trigger" />
-          <button id="planAddTriggerBtn" class="btn">Add</button>
+          <input id="planNewTrigger" type="text" placeholder="Add new trigger" data-nodrag />
+          <button id="planAddTriggerBtn" class="btn" data-nodrag>Add</button>
         </div>
         <p class="muted">Tip: Tailor triggers to your habits. This updates the Log dropdown and quick chips.</p>
+      </div>
+
+      <div class="card form">
+        <h3>Savings Goal</h3>
+        <div class="grid-2">
+          <label>Goal amount (₹)
+            <input type="number" id="savingsGoalAmount" min="0" step="1" placeholder="e.g., 2000" data-nodrag />
+          </label>
+          <label>Goal basis
+            <select id="savingsGoalBasis" data-nodrag>
+              <option value="total">Total savings (to date)</option>
+              <option value="month">This month</option>
+            </select>
+          </label>
+        </div>
+        <div class="row end">
+          <button id="saveSavingsGoal" class="btn" data-nodrag>Save Goal</button>
+          <button id="clearSavingsGoal" class="btn danger" data-nodrag>Clear Goal</button>
+        </div>
       </div>
 
       <div class="card">
@@ -233,14 +267,14 @@
           <div>
             <p class="muted">Download your data as JSON or CSV.</p>
             <div class="row">
-              <button id="exportJson" class="btn">Export JSON</button>
-              <button id="exportCsv" class="btn">Export CSV</button>
+              <button id="exportJson" class="btn" data-nodrag>Export JSON</button>
+              <button id="exportCsv" class="btn" data-nodrag>Export CSV</button>
             </div>
           </div>
           <div>
             <label class="file">
               <span>Import JSON/CSV</span>
-              <input type="file" id="importFile" accept=".json,.csv" />
+              <input type="file" id="importFile" accept=".json,.csv" data-nodrag />
             </label>
             <p class="muted">Import merges with existing data. Duplicates by id are ignored.</p>
           </div>

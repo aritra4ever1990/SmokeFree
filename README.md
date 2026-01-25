@@ -1,28 +1,15 @@
-# 🚭 SmokeLess — Local Smoking Tracker (v5)
+# 🚭 SmokeLess — Local Smoking Tracker (v7)
 
-**New in v5:**
-- **Custom triggers moved to Plan** — manage triggers (add / delete / reorder) under **Plan → Triggers**; updates Log dropdown & chips.
-- **Badges Gallery filter** — filter by **All / Streaks / Timer / Savings**.
-- **Theme switch** — choose **System / Light / Dark** from the header.
-- **Craving history** — timer events (start/pause/reset/delay/milestone/complete) are captured in **History**.
-- **Savings boost** — each successful timer completion contributes to **Craving savings** in the **Money** card (current month).
+**Fixes & Enhancements in v7**
 
-Other highlights:
-- **3‑month taper plan** with editable daily limits and optional quit date.
-- **Timer‑gated logging** + **Delay 5 min**.
-- **30‑day line chart** & **Hours × Triggers** heatmap (last 30 days).
-- **Streaks & Badges** (plus persistent gallery).
-- **Export/Import** JSON (entries, settings, badges) and CSV (now includes **type** and **action** columns).
-- **PWA** ready; offline once served locally.
+- **Buttons not working (drag issue) — fixed**: Interactive elements inside draggable dashboard cards are now non-draggable and cancel drag events, so clicks/taps work reliably.
+- **Savings Goal Progress Bar**: Set a goal in **Plan → Savings Goal** (amount + basis: *total* or *this month*). Dashboard **Money** card shows a progress bar and %.
+- Everything from v6 retained: savings counter & badges, native notifications, movable cards, Log as default tab, craving intensity & notes, etc.
 
-## ▶️ Run locally
+## Run
 - Quick: open `index.html`.
 - Recommended (PWA): `python -m http.server 5500` → open `http://localhost:5500/` → **Install app**.
 
 ## Notes
-- **Theme**: “System” respects your OS setting; “Light/Dark” overrides it.
-- **Craving savings**: assumes the price of ~1 cigarette saved per successful timer; set **Cost per pack / Cigs per pack** in **Plan**.
-- **CSV import**: legacy CSVs (without `type`) are treated as smoke entries.
-
-## License
-MIT
+- For accurate savings, set **Cost per pack / Cigs per pack** in **Plan**.
+- Use **Badges → Savings** to see milestone badges (₹100 .. ₹10,000).
