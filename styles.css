@@ -1,9 +1,8 @@
-/* SmokeLess - v7 */
+/* SmokeLess - v9 (AI Coach & reliability) */
 :root { --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --primary:#0ea5e9; --danger:#ef4444; --ok:#22c55e; --accent:#7dd3fc; }
 :root[data-theme="light"] { --bg:#eef2ff; --card:#ffffff; --text:#0f172a; --muted:#475569; }
 :root[data-theme="dark"]  { --bg:#0b1220; --card:#0f172a; --text:#e2e8f0; --muted:#94a3b8; }
-*{box-sizing:border-box}
-html,body{height:100%}
+*{box-sizing:border-box} html,body{height:100%}
 body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;color:var(--text);background:radial-gradient(1200px 600px at 20% -10%,#0b3761 0%,transparent 60%),radial-gradient(1200px 600px at 80% -20%,#19314d 0%,transparent 60%),var(--bg)}
 .app-header{position:sticky;top:0;backdrop-filter:blur(6px);background:rgba(10,15,25,.6);padding:16px 16px 8px;border-bottom:1px solid #1e293b;z-index:5;display:grid;gap:6px}
 .app-header h1{margin:0;font-weight:700}
@@ -52,16 +51,10 @@ textarea{resize:vertical}
 .plan-day.today{outline:2px solid rgba(14,165,233,0.35)}
 .file input[type=file]{display:none}
 .file{display:inline-block;background:#0b1324;border:1px dashed #2b3b61;padding:10px 12px;border-radius:10px;cursor:pointer}
-/* Timer */
-.timer{display:grid;gap:10px}
-.timer-display{font-size:36px;font-weight:800;letter-spacing:1px}
-/* Charts */
 .chart,.heatmap{width:100%;height:auto;background:#0b1324;border:1px solid #1f2a44;border-radius:12px}
-/* Toasts */
 .toast-container{position:fixed;right:16px;bottom:16px;display:grid;gap:8px;z-index:9999}
 .toast{background:#0b1324;border:1px solid #1f2a44;color:var(--text);padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);animation:toast-in .25s ease forwards}
 @keyframes toast-in{to{opacity:1;transform:translateY(0)}}
-/* Colored cards */
 .card-today{background:linear-gradient(180deg,rgba(56,189,248,.12),rgba(15,23,42,.9));border-color:#0ea5e94d}
 .card-trend{background:linear-gradient(180deg,rgba(34,197,94,.10),rgba(15,23,42,.9));border-color:#22c55e4d}
 .card-money{background:linear-gradient(180deg,rgba(244,63,94,.10),rgba(15,23,42,.9));border-color:#ef44444d}
@@ -70,6 +63,24 @@ textarea{resize:vertical}
 .card-gallery{background:linear-gradient(180deg,rgba(192,132,252,.12),rgba(15,23,42,.9));border-color:#c084fc4d}
 .card-linechart{background:linear-gradient(180deg,rgba(125,211,252,.10),rgba(15,23,42,.9));border-color:#7dd3fc4d}
 .card-heatmap{background:linear-gradient(180deg,rgba(248,113,113,.10),rgba(15,23,42,.9));border-color:#f871714d}
-/* Progress */
 .progress{position:relative;height:10px;background:#0b1324;border:1px solid #1f2a44;border-radius:999px;margin-top:8px;overflow:hidden}
 .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#22c55e,#16a34a)}
+/* --- Interaction safety: prevent dragging on controls inside draggable cards --- */
+.card button, .card input, .card select, .card textarea, .card a, .card [data-nodrag] { -webkit-user-drag: none; user-select: text; }
+/* Coach UI */
+.coach-card { display:grid; gap:10px; }
+.coach-messages { background:#0b1324; border:1px solid #1f2a44; border-radius:12px; min-height:160px; max-height:320px; overflow:auto; padding:10px; display:grid; gap:8px; }
+.msg { display:flex; gap:8px; }
+.msg.me { justify-content:flex-end; }
+.msg .bubble { max-width: 85%; padding: 8px 10px; border-radius: 12px; border:1px solid #1f2a44; }
+.msg.me .bubble { background:#133361; color:#e6f2ff; }
+.msg.ai .bubble { background:#0f172a; color:#e2e8f0; }
+.coach-input { display:flex; gap:8px; }
+.coach-input input { flex:1; }
+.coach-tools { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.card.mini { padding:12px; }
+/* Modal */
+.modal { position: fixed; inset: 0; display: grid; place-items: center; z-index: 10000; }
+.modal[hidden] { display: none; }
+.modal-backdrop { position:absolute; inset:0; background: rgba(0,0,0,.5); backdrop-filter: blur(2px); }
+.modal-card { position:relative; width:min(680px, 92vw); background: var(--card); border:1px solid #1f2a44; border-radius:16px; padding:16px; box-shadow:0 24px 60px rgba(0,0,0,.45); }

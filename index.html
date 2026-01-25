@@ -28,11 +28,11 @@
       <button class="tab-btn active" data-tab="log" aria-selected="true">Log</button>
       <button class="tab-btn" data-tab="history">History</button>
       <button class="tab-btn" data-tab="plan">Plan</button>
+      <button class="tab-btn" data-tab="coach">Coach</button>
       <button class="tab-btn" data-tab="data">Data</button>
     </nav>
   </header>
 
-  <!-- Toasts -->
   <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
   <main>
@@ -72,7 +72,6 @@
           <p class="muted">Goal: <strong id="savingsGoalText">—</strong> • Progress: <strong id="savingsProgressPct">0%</strong></p>
         </div>
 
-        <!-- CRAVING TIMER -->
         <div class="card card-timer" draggable="true" data-card="timer">
           <h3>Craving Timer</h3>
           <div class="timer">
@@ -101,7 +100,6 @@
           </div>
         </div>
 
-        <!-- STREAKS & BADGES (live) -->
         <div class="card card-streaks" draggable="true" data-card="streaks">
           <h3>Streaks & Badges</h3>
           <div class="streaks">
@@ -112,7 +110,6 @@
           <div class="badges-list" id="badgesList"></div>
         </div>
 
-        <!-- BADGES GALLERY with filter -->
         <div class="card card-gallery" draggable="true" data-card="gallery">
           <h3>Badges Gallery</h3>
           <div class="row wrap" id="badgesFilter" style="gap:8px; margin-bottom:8px;">
@@ -124,14 +121,12 @@
           <div id="badgesGallery" class="badges-gallery"></div>
         </div>
 
-        <!-- 30-DAY LINE CHART -->
         <div class="card card-linechart" draggable="true" data-card="linechart">
           <h3>30‑Day Line Chart</h3>
           <canvas id="chart30" class="chart" width="640" height="260" aria-label="30 day line chart"></canvas>
           <p class="muted">Counts per day (blue). Daily limit (gray).</p>
         </div>
 
-        <!-- TRIGGERS HEATMAP (HOURS × TRIGGERS) -->
         <div class="card card-heatmap" draggable="true" data-card="heatmap">
           <h3>Triggers Heatmap (Hours × Triggers, Last 30 days)</h3>
           <canvas id="heatmap" class="heatmap" width="640" height="340" aria-label="Triggers heatmap hours by triggers"></canvas>
@@ -258,6 +253,92 @@
         <div id="planGrid" class="plan-grid"></div>
       </div>
     </section>
+
+    <!-- COACH (AI) -->
+    <section id="coach" class="tab-panel" aria-labelledby="Coach">
+      <div class="card coach-card">
+        <div class="row wrap" style="justify-content:space-between; gap:8px;">
+          <div class="muted">Your AI quit‑coach can suggest coping strategies, micro‑goals, and reframes.
+          </div>
+          <label class="muted" style="display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="coachShareContext" /> Share plan & recent stats for better help
+          </label>
+        </div>
+        <div id="coachMessages" class="coach-messages" aria-live="polite"></div>
+        <div class="coach-tools">
+          <div class="card mini">
+            <h4 style="margin:0 0 6px;">Daily check‑in</h4>
+            <div class="grid-2">
+              <label>How were cravings today (1–5)?
+                <select id="checkinCraving" data-nodrag>
+                  <option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option>
+                </select>
+              </label>
+              <label>Check‑in time
+                <input type="time" id="checkinTime" value="21:00" data-nodrag />
+              </label>
+            </div>
+            <label>Note (optional)
+              <input type="text" id="checkinNote" placeholder="e.g., toughest after lunch" data-nodrag />
+            </label>
+            <div class="row" style="justify-content:space-between;">
+              <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="checkinEnabled" /> Enable daily check‑in
+              </label>
+              <button id="checkinSave" class="btn" data-nodrag>Save check‑in</button>
+            </div>
+          </div>
+          <div class="card mini">
+            <h4 style="margin:0 0 6px;">Relapse repair</h4>
+            <p class="muted" style="margin:0 0 8px;">Build a quick plan to bounce back fast.</p>
+            <button id="openRelapse" class="btn" data-nodrag>Open repair template</button>
+          </div>
+        </div>
+        <div class="coach-input">
+          <input id="coachText" type="text" placeholder="Ask for help (e.g., ‘I feel an urge after coffee’)" />
+          <button id="coachSend" class="btn primary">Send</button>
+        </div>
+        <div class="row wrap" style="margin-top:8px; gap:6px;">
+          <button class="chip" data-coach-prompt="Give me a 2‑minute urge exercise.">2‑min exercise</button>
+          <button class="chip" data-coach-prompt="Help me reframe this craving.">Reframe craving</button>
+          <button class="chip" data-coach-prompt="Suggest a micro‑goal for today.">Micro‑goal</button>
+          <button class="chip" data-coach-prompt="Review my progress and encourage me.">Encourage me</button>
+        </div>
+        <p class="muted" id="coachStatus" style="margin-top:6px;"></p>
+      </div>
+    </section>
+
+    <!-- Relapse Repair Modal -->
+    <div id="relapseModal" class="modal" hidden>
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <h3 style="margin-top:0;">Relapse Repair Plan</h3>
+        <div class="grid-2">
+          <label>Trigger / Situation
+            <input id="rrTrigger" type="text" placeholder="e.g., after argument" />
+          </label>
+          <label>When did it happen?
+            <input id="rrWhen" type="datetime-local" />
+          </label>
+        </div>
+        <label>What I’ll do right now
+          <input id="rrNow" type="text" placeholder="e.g., drink water + 5‑minute walk" />
+        </label>
+        <label>Who I’ll contact (optional)
+          <input id="rrContact" type="text" placeholder="e.g., friend or family" />
+        </label>
+        <label>Replacement behavior
+          <input id="rrReplace" type="text" placeholder="e.g., herbal tea, deep breathing" />
+        </label>
+        <label>Next 24‑hours micro‑goal
+          <input id="rrGoal" type="text" placeholder="e.g., follow plan limit, use timer for urges" />
+        </label>
+        <div class="row end" style="margin-top:8px;">
+          <button id="rrCancel" class="btn">Cancel</button>
+          <button id="rrSave" class="btn primary">Save plan</button>
+        </div>
+      </div>
+    </div>
 
     <!-- DATA -->
     <section id="data" class="tab-panel" aria-labelledby="Data">
